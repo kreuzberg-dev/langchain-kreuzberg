@@ -196,29 +196,7 @@ Additional metadata fields from Kreuzberg's document-level metadata are flattene
 
 ## Supported Formats
 
-### Documents
-PDF, DOCX, DOC, RTF, ODT, EPUB, MOBI, FB2, XPS, OXPS
-
-### Spreadsheets
-XLSX, XLS, ODS, CSV, TSV
-
-### Presentations
-PPTX, PPT, ODP
-
-### Images (via OCR)
-PNG, JPEG, TIFF, BMP, GIF, WebP, HEIC, HEIF, JP2, PNM
-
-### Web & Markup
-HTML, XHTML, XML, Markdown, reStructuredText, AsciiDoc, Org, Djot
-
-### Plain Text & Code
-TXT, JSON, YAML, TOML, INI, CFG, LOG, and source code files
-
-### Email
-EML, MSG
-
-### Archives & Other
-CBZ, WAR, HWPX, and many more
+Kreuzberg supports 75+ file formats including PDF, DOCX, images (via OCR), spreadsheets, presentations, HTML, Markdown, and many more. For the full and up-to-date list of supported formats, see the [Kreuzberg documentation](https://github.com/Goldziher/kreuzberg).
 
 ## Contributing
 

@@ -1,12 +1,8 @@
 """Kreuzberg document loader for LangChain."""
 
-from __future__ import annotations
-
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Iterator
+from typing import Any
 
 from kreuzberg import (
     ExtractionConfig,
@@ -147,11 +143,10 @@ class KreuzbergLoader(BaseLoader):
 
     def _result_to_documents(self, result: ExtractionResult, source: str) -> Iterator[Document]:
         """Convert an ExtractionResult to one or more LangChain Documents."""
-        metadata = self._build_metadata(result, source)
-
         if self._per_page and result.pages:
-            yield from self._pages_to_documents(result, metadata)
+            yield from self._pages_to_documents(result, source)
         else:
+            metadata = self._build_metadata(result, source)
             page_content = self._assemble_content(result.content, result.tables)
             yield Document(page_content=page_content, metadata=metadata)
 
@@ -207,9 +202,11 @@ class KreuzbergLoader(BaseLoader):
     def _pages_to_documents(
         self,
         result: ExtractionResult,
-        base_metadata: dict[str, Any],
+        source: str,
     ) -> Iterator[Document]:
         """Yield one Document per page from an ExtractionResult."""
+        base_metadata = self._build_metadata(result, source)
+
         for page in result.pages:
             page_metadata = {**base_metadata}
 
@@ -234,13 +231,8 @@ class KreuzbergLoader(BaseLoader):
         if not self._extract_tables or not tables:
             return content
 
-        parts = [content]
-        for table in tables:
-            markdown = table.markdown if hasattr(table, "markdown") else table.get("markdown", "")
-            if markdown:
-                parts.append(markdown)
-
-        return "\n\n".join(parts)
+        table_parts = [table.markdown if hasattr(table, "markdown") else table.get("markdown", "") for table in tables]
+        return "\n\n".join([content, *(m for m in table_parts if m)])
 
     def _resolve_file_paths(self) -> Iterator[Path]:
         """Resolve file paths from the configured file_path."""
