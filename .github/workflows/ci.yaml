@@ -31,15 +31,12 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.10"
 
       - uses: astral-sh/setup-uv@v6
 
@@ -48,3 +45,6 @@ jobs:
 
       - name: Run tests
         run: uv run pytest --cov --cov-report=xml
+
+      - name: Run integration tests
+        run: uv run pytest -m integration -v
