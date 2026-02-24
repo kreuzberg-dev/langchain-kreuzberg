@@ -229,8 +229,11 @@ uv run ruff check .
 uv run ruff format --check .
 uv run mypy .
 
-# Run tests
+# Run unit tests
 uv run pytest --cov
+
+# Run integration tests (real file extraction, no mocks)
+uv run pytest -m integration -v
 
 # Install pre-commit hooks
 uv run pre-commit install
