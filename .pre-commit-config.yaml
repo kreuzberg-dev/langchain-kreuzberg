@@ -24,3 +24,4 @@ repos:
         additional_dependencies:
           - langchain-core>=0.3,<2.0
           - kreuzberg>=4.0
+          - pytest>=9.0
