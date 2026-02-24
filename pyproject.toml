@@ -5,27 +5,55 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/langchain_kreuzberg"]
 
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/langchain_kreuzberg",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "pyproject.toml",
+]
+
 [project]
 name = "langchain-kreuzberg"
-version = "0.1.0"
-description = "Kreuzberg document loader for LangChain"
+version = "1.0.0"
+description = "Kreuzberg document loader for LangChain — extract text from 75+ file formats with true async and rich metadata"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-authors = [{ name = "Kreuzberg Contributors" }]
+authors = [{ name = "Kreuzberg.dev", email = "admin@kreuzberg.dev" }]
+keywords = [
+    "kreuzberg",
+    "langchain",
+    "document-loader",
+    "text-extraction",
+    "pdf",
+    "ocr",
+    "rag",
+    "llm",
+    "ai",
+    "nlp",
+    "document-intelligence",
+]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Text Processing :: General",
+    "Topic :: Text Processing :: Indexing",
+    "Typing :: Typed",
 ]
 dependencies = [
     "langchain-core>=1.0,<2.0",
-    "kreuzberg>=4.0",
+    "kreuzberg>=4.3.0",
 ]
 
 [dependency-groups]
@@ -39,9 +67,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Goldziher/langchain-kreuzberg"
-Repository = "https://github.com/Goldziher/langchain-kreuzberg"
-Issues = "https://github.com/Goldziher/langchain-kreuzberg/issues"
+Homepage = "https://github.com/kreuzberg-dev/langchain-kreuzberg"
+Documentation = "https://docs.kreuzberg.dev"
+Repository = "https://github.com/kreuzberg-dev/langchain-kreuzberg"
+Issues = "https://github.com/kreuzberg-dev/langchain-kreuzberg/issues"
+Kreuzberg = "https://github.com/kreuzberg-dev/kreuzberg"
 
 [tool.ruff]
 target-version = "py310"
