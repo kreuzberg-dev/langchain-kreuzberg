@@ -8,8 +8,8 @@ from kreuzberg import (
     ExtractionConfig,
     ExtractionResult,
     KreuzbergError,
-    OcrConfig,
-    PageConfig,
+    batch_extract_files,
+    batch_extract_files_sync,
     extract_bytes,
     extract_bytes_sync,
     extract_file,
@@ -30,6 +30,10 @@ class KreuzbergLoader(BaseLoader):
             >>> loader = KreuzbergLoader(file_path="document.pdf")
             >>> docs = loader.load()
 
+        Load multiple files:
+            >>> loader = KreuzbergLoader(file_path=["a.pdf", "b.docx", "c.txt"])
+            >>> docs = loader.load()
+
         Load from bytes:
             >>> loader = KreuzbergLoader(data=raw_bytes, mime_type="application/pdf")
             >>> docs = loader.load()
@@ -39,8 +43,19 @@ class KreuzbergLoader(BaseLoader):
             >>> docs = loader.load()
 
         Per-page splitting:
-            >>> loader = KreuzbergLoader(file_path="document.pdf", per_page=True)
+            >>> from kreuzberg import ExtractionConfig, PageConfig
+            >>> config = ExtractionConfig(pages=PageConfig(extract_pages=True))
+            >>> loader = KreuzbergLoader(file_path="document.pdf", config=config)
             >>> docs = loader.load()  # One Document per page
+
+        OCR a scanned document:
+            >>> from kreuzberg import ExtractionConfig, OcrConfig
+            >>> config = ExtractionConfig(
+            ...     force_ocr=True,
+            ...     ocr=OcrConfig(backend="tesseract", language="eng"),
+            ... )
+            >>> loader = KreuzbergLoader(file_path="scan.pdf", config=config)
+            >>> docs = loader.load()
 
         Async loading:
             >>> loader = KreuzbergLoader(file_path="document.pdf")
@@ -50,17 +65,11 @@ class KreuzbergLoader(BaseLoader):
 
     def __init__(
         self,
-        file_path: str | Path | list[str | Path] | None = None,
         *,
+        file_path: str | Path | list[str | Path] | None = None,
         data: bytes | None = None,
         mime_type: str | None = None,
         glob: str | None = None,
-        output_format: str = "markdown",
-        ocr_backend: str | None = None,
-        ocr_language: str | None = None,
-        force_ocr: bool = False,
-        extract_tables: bool = True,
-        per_page: bool = False,
         config: ExtractionConfig | None = None,
     ) -> None:
         """Initialize the KreuzbergLoader.
@@ -70,15 +79,9 @@ class KreuzbergLoader(BaseLoader):
             data: Raw bytes to extract text from. Mutually exclusive with file_path.
             mime_type: MIME type hint. Required when using data, optional for file_path.
             glob: Glob pattern for directory mode. Defaults to None (matches all files).
-            output_format: Output format for extraction. One of "plain", "markdown",
-                "djot", "html", "structured". Defaults to "markdown".
-            ocr_backend: OCR backend name. One of "tesseract", "easyocr", "paddleocr".
-            ocr_language: OCR language code (ISO 639-3, e.g., "eng", "deu", "fra").
-            force_ocr: Force OCR even on searchable PDFs. Defaults to False.
-            extract_tables: Include tables in page_content and metadata. Defaults to True.
-            per_page: Yield one Document per page instead of one per file. Defaults to False.
-            config: Full ExtractionConfig override. When provided, individual extraction
-                parameters (output_format, ocr_backend, etc.) are ignored.
+            config: Kreuzberg ExtractionConfig for controlling extraction behavior
+                (output format, OCR settings, page splitting, etc.).
+                Defaults to ExtractionConfig() if not provided.
 
         Raises:
             ValueError: If neither file_path nor data is provided.
@@ -107,39 +110,12 @@ class KreuzbergLoader(BaseLoader):
         self._data = data
         self._mime_type = mime_type
         self._glob = glob
-        self._output_format = output_format
-        self._ocr_backend = ocr_backend
-        self._ocr_language = ocr_language
-        self._force_ocr = force_ocr
-        self._extract_tables = extract_tables
-        self._per_page = per_page
-        self._config = config
+        self._config = config or ExtractionConfig()
 
-    def _build_config(self) -> ExtractionConfig:
-        """Build an ExtractionConfig from individual parameters.
-
-        If a full config override was provided, return it directly.
-        """
-        if self._config is not None:
-            return self._config
-
-        kwargs: dict[str, Any] = {"output_format": self._output_format}
-
-        if self._ocr_backend is not None or self._ocr_language is not None:
-            ocr_kwargs: dict[str, Any] = {}
-            if self._ocr_backend is not None:
-                ocr_kwargs["backend"] = self._ocr_backend
-            if self._ocr_language is not None:
-                ocr_kwargs["language"] = self._ocr_language
-            kwargs["ocr"] = OcrConfig(**ocr_kwargs)
-
-        if self._force_ocr:
-            kwargs["force_ocr"] = True
-
-        if self._per_page:
-            kwargs["pages"] = PageConfig(extract_pages=True)
-
-        return ExtractionConfig(**kwargs)
+    @property
+    def _per_page(self) -> bool:
+        """Whether per-page splitting is enabled in the config."""
+        return self._config.pages is not None and self._config.pages.extract_pages
 
     def _result_to_documents(self, result: ExtractionResult, source: str) -> Iterator[Document]:
         """Convert an ExtractionResult to one or more LangChain Documents."""
@@ -181,7 +157,7 @@ class KreuzbergLoader(BaseLoader):
 
         # Tables metadata
         metadata["table_count"] = len(result.tables)
-        if self._extract_tables and result.tables:
+        if result.tables:
             metadata["tables"] = [
                 {
                     "cells": table.cells,
@@ -227,23 +203,31 @@ class KreuzbergLoader(BaseLoader):
         content: str,
         tables: Any,
     ) -> str:
-        """Combine text content with table markdown if extract_tables is enabled."""
-        if not self._extract_tables or not tables:
+        """Combine text content with table markdown."""
+        if not tables:
             return content
 
         table_parts = [table.markdown if hasattr(table, "markdown") else table.get("markdown", "") for table in tables]
         return "\n\n".join([content, *(m for m in table_parts if m)])
 
     def _resolve_file_paths(self) -> Iterator[Path]:
-        """Resolve file paths from the configured file_path."""
+        """Resolve file paths for multi-file and directory modes."""
         if isinstance(self._file_path, list):
             yield from self._file_path
-        elif isinstance(self._file_path, Path):
-            if self._file_path.is_dir():
-                pattern = self._glob or "**/*"
-                yield from (p for p in self._file_path.glob(pattern) if p.is_file())
-            else:
-                yield self._file_path
+        elif isinstance(self._file_path, Path) and self._file_path.is_dir():
+            pattern = self._glob or "**/*"
+            yield from (p for p in self._file_path.glob(pattern) if p.is_file())
+
+    def _is_single_file(self) -> bool:
+        """Whether the loader targets exactly one file (not a list or directory)."""
+        return isinstance(self._file_path, Path) and not self._file_path.is_dir()
+
+    @staticmethod
+    def _check_batch_result(result: ExtractionResult, path: Path) -> None:
+        """Raise KreuzbergError if a batch result represents an extraction failure."""
+        if not result.metadata and result.content.startswith("Error:"):
+            msg = f"Failed to extract '{path}': {result.content}"
+            raise KreuzbergError(msg)
 
     def lazy_load(self) -> Iterator[Document]:
         """Load documents lazily, yielding one Document at a time.
@@ -252,21 +236,30 @@ class KreuzbergLoader(BaseLoader):
             Document objects with extracted text and metadata.
 
         """
-        config = self._build_config()
+        config = self._config
 
         if self._data is not None:
             mime_type: str = self._mime_type  # type: ignore[assignment]  # Validated in __init__
             result = extract_bytes_sync(self._data, mime_type, config=config)
             source = f"bytes://{mime_type}"
             yield from self._result_to_documents(result, source)
+        elif self._is_single_file():
+            path = self._file_path
+            assert isinstance(path, Path)  # noqa: S101
+            try:
+                result = extract_file_sync(path, mime_type=self._mime_type, config=config)
+            except KreuzbergError as exc:
+                msg = f"Failed to extract '{path}': {exc}"
+                raise type(exc)(msg) from exc
+            yield from self._result_to_documents(result, str(path))
         else:
-            for path in self._resolve_file_paths():
-                try:
-                    result = extract_file_sync(path, mime_type=self._mime_type, config=config)
-                except KreuzbergError as exc:
-                    msg = f"Failed to extract '{path}': {exc}"
-                    raise type(exc)(msg) from exc
-                yield from self._result_to_documents(result, str(path))
+            batch_paths: list[str | Path] = list(self._resolve_file_paths())
+            if not batch_paths:
+                return
+            results = batch_extract_files_sync(batch_paths, config)
+            for file_path, result in zip(batch_paths, results, strict=True):
+                self._check_batch_result(result, Path(file_path))
+                yield from self._result_to_documents(result, str(file_path))
 
     async def alazy_load(self) -> AsyncIterator[Document]:
         """Load documents asynchronously, yielding one Document at a time.
@@ -277,7 +270,7 @@ class KreuzbergLoader(BaseLoader):
             Document objects with extracted text and metadata.
 
         """
-        config = self._build_config()
+        config = self._config
 
         if self._data is not None:
             mime_type: str = self._mime_type  # type: ignore[assignment]  # Validated in __init__
@@ -285,12 +278,22 @@ class KreuzbergLoader(BaseLoader):
             source = f"bytes://{mime_type}"
             for doc in self._result_to_documents(result, source):
                 yield doc
+        elif self._is_single_file():
+            path = self._file_path
+            assert isinstance(path, Path)  # noqa: S101
+            try:
+                result = await extract_file(path, mime_type=self._mime_type, config=config)
+            except KreuzbergError as exc:
+                msg = f"Failed to extract '{path}': {exc}"
+                raise type(exc)(msg) from exc
+            for doc in self._result_to_documents(result, str(path)):
+                yield doc
         else:
-            for path in self._resolve_file_paths():
-                try:
-                    result = await extract_file(path, mime_type=self._mime_type, config=config)
-                except KreuzbergError as exc:
-                    msg = f"Failed to extract '{path}': {exc}"
-                    raise type(exc)(msg) from exc
-                for doc in self._result_to_documents(result, str(path)):
+            batch_paths: list[str | Path] = list(self._resolve_file_paths())
+            if not batch_paths:
+                return
+            results = await batch_extract_files(batch_paths, config)
+            for file_path, result in zip(batch_paths, results, strict=True):
+                self._check_batch_result(result, Path(file_path))
+                for doc in self._result_to_documents(result, str(file_path)):
                     yield doc

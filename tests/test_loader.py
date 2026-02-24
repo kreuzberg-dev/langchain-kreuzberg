@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from kreuzberg import ExtractionConfig, OcrConfig
+from kreuzberg import ExtractionConfig, OcrConfig, PageConfig
 
 from langchain_kreuzberg import KreuzbergLoader
 from tests.conftest import make_mock_keyword, make_mock_result, make_mock_table
@@ -48,71 +48,24 @@ def test_valid_path_object() -> None:
     assert loader._file_path == Path("test.pdf")
 
 
-# --- ExtractionConfig construction ---
+# --- Config handling ---
 
 
 def test_default_config() -> None:
     loader = KreuzbergLoader(file_path="test.pdf")
-    config = loader._build_config()
-    assert isinstance(config, ExtractionConfig)
-    assert config.output_format == "markdown"
+    assert isinstance(loader._config, ExtractionConfig)
+    assert loader._config.output_format == "plain"
 
 
-def test_output_format_passthrough() -> None:
-    loader = KreuzbergLoader(file_path="test.pdf", output_format="plain")
-    config = loader._build_config()
-    assert config.output_format == "plain"
-
-
-def test_ocr_config_construction() -> None:
-    loader = KreuzbergLoader(file_path="test.pdf", ocr_backend="tesseract", ocr_language="deu")
-    config = loader._build_config()
-    assert config.ocr is not None
-    assert config.ocr.backend == "tesseract"
-    assert config.ocr.language == "deu"
-
-
-def test_ocr_backend_only() -> None:
-    loader = KreuzbergLoader(file_path="test.pdf", ocr_backend="easyocr")
-    config = loader._build_config()
-    assert config.ocr is not None
-    assert config.ocr.backend == "easyocr"
-
-
-def test_ocr_language_only() -> None:
-    loader = KreuzbergLoader(file_path="test.pdf", ocr_language="fra")
-    config = loader._build_config()
-    assert config.ocr is not None
-    assert config.ocr.language == "fra"
-
-
-def test_force_ocr_passthrough() -> None:
-    loader = KreuzbergLoader(file_path="test.pdf", force_ocr=True)
-    config = loader._build_config()
-    assert config.force_ocr is True
-
-
-def test_per_page_creates_page_config() -> None:
-    loader = KreuzbergLoader(file_path="test.pdf", per_page=True)
-    config = loader._build_config()
-    assert config.pages is not None
-    assert config.pages.extract_pages is True
-
-
-def test_config_override() -> None:
+def test_custom_config_passthrough() -> None:
     custom_config = ExtractionConfig(
         output_format="html",
         force_ocr=True,
         ocr=OcrConfig(backend="paddleocr"),
     )
-    loader = KreuzbergLoader(
-        file_path="test.pdf",
-        output_format="plain",  # Should be ignored
-        config=custom_config,
-    )
-    config = loader._build_config()
-    assert config is custom_config
-    assert config.output_format == "html"
+    loader = KreuzbergLoader(file_path="test.pdf", config=custom_config)
+    assert loader._config is custom_config
+    assert loader._config.output_format == "html"
 
 
 # --- Synchronous loading ---
@@ -172,50 +125,48 @@ def test_load_bytes_mode(mock_extract: MagicMock) -> None:
     mock_extract.assert_called_once()
 
 
-@patch("langchain_kreuzberg.loader.extract_file_sync")
-def test_load_multiple_files(mock_extract: MagicMock) -> None:
-    mock_extract.return_value = make_mock_result()
+@patch("langchain_kreuzberg.loader.batch_extract_files_sync")
+def test_load_multiple_files(mock_batch: MagicMock) -> None:
+    mock_batch.return_value = [make_mock_result(), make_mock_result(), make_mock_result()]
 
     loader = KreuzbergLoader(file_path=["a.txt", "b.txt", "c.txt"])
     docs = loader.load()
 
     assert len(docs) == 3
-    assert mock_extract.call_count == 3
+    mock_batch.assert_called_once()
     sources = [d.metadata["source"] for d in docs]
     assert sources == ["a.txt", "b.txt", "c.txt"]
 
 
-@patch("langchain_kreuzberg.loader.extract_file_sync")
-def test_load_directory_with_glob(mock_extract: MagicMock, tmp_dir_with_files: Path) -> None:
-    mock_extract.return_value = make_mock_result()
+@patch("langchain_kreuzberg.loader.batch_extract_files_sync")
+def test_load_directory_with_glob(mock_batch: MagicMock, tmp_dir_with_files: Path) -> None:
+    mock_batch.return_value = [make_mock_result(), make_mock_result()]
 
     loader = KreuzbergLoader(file_path=str(tmp_dir_with_files), glob="*.txt")
     docs = loader.load()
 
     # Only top-level .txt files (file1.txt, file2.txt)
     assert len(docs) == 2
-    assert mock_extract.call_count == 2
+    mock_batch.assert_called_once()
 
 
-@patch("langchain_kreuzberg.loader.extract_file_sync")
-def test_load_directory_default_glob(mock_extract: MagicMock, tmp_dir_with_files: Path) -> None:
-    mock_extract.return_value = make_mock_result()
+@patch("langchain_kreuzberg.loader.batch_extract_files_sync")
+def test_load_directory_default_glob(mock_batch: MagicMock, tmp_dir_with_files: Path) -> None:
+    mock_batch.return_value = [make_mock_result(), make_mock_result(), make_mock_result()]
 
     loader = KreuzbergLoader(file_path=str(tmp_dir_with_files))
     docs = loader.load()
 
     # Default glob **/* matches all files including subdir/file3.txt
     assert len(docs) == 3
-    assert mock_extract.call_count == 3
+    mock_batch.assert_called_once()
 
 
-@patch("langchain_kreuzberg.loader.extract_file_sync")
-def test_load_empty_directory(mock_extract: MagicMock, tmp_path: Path) -> None:
+def test_load_empty_directory(tmp_path: Path) -> None:
     loader = KreuzbergLoader(file_path=str(tmp_path))
     docs = loader.load()
 
     assert len(docs) == 0
-    mock_extract.assert_not_called()
 
 
 # --- Per-page splitting ---
@@ -232,7 +183,8 @@ def test_per_page_splitting(mock_extract: MagicMock) -> None:
         page_count=3,
     )
 
-    loader = KreuzbergLoader(file_path="doc.pdf", per_page=True)
+    config = ExtractionConfig(pages=PageConfig(extract_pages=True))
+    loader = KreuzbergLoader(file_path="doc.pdf", config=config)
     docs = loader.load()
 
     assert len(docs) == 3
@@ -251,7 +203,8 @@ def test_per_page_metadata(mock_extract: MagicMock) -> None:
         page_count=2,
     )
 
-    loader = KreuzbergLoader(file_path="doc.pdf", per_page=True)
+    config = ExtractionConfig(pages=PageConfig(extract_pages=True))
+    loader = KreuzbergLoader(file_path="doc.pdf", config=config)
     docs = loader.load()
 
     # Page numbers are 0-indexed in LangChain convention
@@ -277,7 +230,8 @@ def test_per_page_with_tables(mock_extract: MagicMock) -> None:
         page_count=1,
     )
 
-    loader = KreuzbergLoader(file_path="doc.pdf", per_page=True)
+    config = ExtractionConfig(pages=PageConfig(extract_pages=True))
+    loader = KreuzbergLoader(file_path="doc.pdf", config=config)
     docs = loader.load()
 
     assert "| X |" in docs[0].page_content
@@ -285,10 +239,11 @@ def test_per_page_with_tables(mock_extract: MagicMock) -> None:
 
 @patch("langchain_kreuzberg.loader.extract_file_sync")
 def test_per_page_fallback_when_no_pages(mock_extract: MagicMock) -> None:
-    """When per_page=True but result has no pages, fall back to whole document."""
+    """When per_page is configured but result has no pages, fall back to whole document."""
     mock_extract.return_value = make_mock_result(content="Whole document", pages=None)
 
-    loader = KreuzbergLoader(file_path="doc.txt", per_page=True)
+    config = ExtractionConfig(pages=PageConfig(extract_pages=True))
+    loader = KreuzbergLoader(file_path="doc.txt", config=config)
     docs = loader.load()
 
     assert len(docs) == 1
@@ -412,22 +367,6 @@ def test_table_extraction_in_metadata(mock_extract: MagicMock) -> None:
 
 
 @patch("langchain_kreuzberg.loader.extract_file_sync")
-def test_tables_disabled(mock_extract: MagicMock) -> None:
-    table = make_mock_table()
-    mock_extract.return_value = make_mock_result(content="Main text", tables=[table])
-
-    loader = KreuzbergLoader(file_path="doc.pdf", extract_tables=False)
-    docs = loader.load()
-
-    # Table markdown should NOT be in page_content
-    assert docs[0].page_content == "Main text"
-    # Table structured data should NOT be in metadata
-    assert "tables" not in docs[0].metadata
-    # But table_count should still be present
-    assert docs[0].metadata["table_count"] == 1
-
-
-@patch("langchain_kreuzberg.loader.extract_file_sync")
 def test_multiple_tables_in_content(mock_extract: MagicMock) -> None:
     t1 = make_mock_table(markdown="| T1 |")
     t2 = make_mock_table(markdown="| T2 |")
@@ -455,6 +394,19 @@ def test_error_propagation(mock_extract: MagicMock) -> None:
         loader.load()
 
 
+@patch("langchain_kreuzberg.loader.batch_extract_files_sync")
+def test_batch_error_propagation(mock_batch: MagicMock) -> None:
+    from kreuzberg.exceptions import KreuzbergError
+
+    error_result = make_mock_result(content="Error: unsupported format", mime_type="text/plain", metadata={})
+    mock_batch.return_value = [make_mock_result(), error_result]
+
+    loader = KreuzbergLoader(file_path=["good.txt", "bad.xyz"])
+
+    with pytest.raises(KreuzbergError, match=r"Failed to extract 'bad\.xyz'"):
+        loader.load()
+
+
 # --- Lazy loading ---
 
 
@@ -469,9 +421,9 @@ def test_lazy_load_is_iterator(mock_extract: MagicMock) -> None:
     assert hasattr(result, "__next__")
 
 
-@patch("langchain_kreuzberg.loader.extract_file_sync")
-def test_lazy_load_yields_documents(mock_extract: MagicMock) -> None:
-    mock_extract.return_value = make_mock_result()
+@patch("langchain_kreuzberg.loader.batch_extract_files_sync")
+def test_lazy_load_yields_documents(mock_batch: MagicMock) -> None:
+    mock_batch.return_value = [make_mock_result(), make_mock_result()]
 
     loader = KreuzbergLoader(file_path=["a.txt", "b.txt"])
 

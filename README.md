@@ -8,7 +8,7 @@
 
 ## Overview
 
-**langchain-kreuzberg** is a LangChain document loader that wraps [Kreuzberg](https://github.com/Goldziher/kreuzberg)'s extraction API. It supports 75+ file formats out of the box, provides true async extraction powered by Rust's tokio runtime, and produces LangChain `Document` objects enriched with 40+ metadata fields including detected languages, quality scores, and extracted keywords.
+**langchain-kreuzberg** is a LangChain document loader that wraps [Kreuzberg](https://kreuzberg.dev)'s extraction API. It supports 75+ file formats out of the box, provides true async extraction powered by Rust's tokio runtime, and produces LangChain `Document` objects enriched with rich metadata including detected languages, quality scores, and extracted keywords.
 
 ## Installation
 
@@ -34,7 +34,7 @@ print(docs[0].metadata["source"])
 
 - **75+ file formats** -- PDF, DOCX, PPTX, XLSX, images, HTML, Markdown, plain text, and many more
 - **True async** -- native async extraction backed by Rust's tokio runtime; no thread-pool workarounds
-- **Rich metadata** -- 40+ fields including title, author, page count, detected languages, quality score, and extracted keywords
+- **Rich metadata** -- title, author, page count, detected languages, quality score, extracted keywords, and more
 - **OCR with 3 backends** -- Tesseract, EasyOCR, and PaddleOCR with configurable language support
 - **Per-page splitting** -- yield one `Document` per page for fine-grained RAG pipelines
 - **Bytes input** -- load documents directly from raw bytes (e.g., API responses, S3 objects)
@@ -51,14 +51,28 @@ loader = KreuzbergLoader(file_path="contract.pdf")
 docs = loader.load()
 ```
 
-### OCR a scanned document with Tesseract
+### Load multiple files
 
 ```python
 loader = KreuzbergLoader(
-    file_path="scanned.pdf",
-    ocr_backend="tesseract",
-    ocr_language="eng",
+    file_path=["report.pdf", "notes.docx", "data.xlsx"],
+)
+docs = loader.load()
+```
+
+### OCR a scanned document with Tesseract
+
+```python
+from kreuzberg import ExtractionConfig, OcrConfig
+
+config = ExtractionConfig(
     force_ocr=True,
+    ocr=OcrConfig(backend="tesseract", language="eng"),
+)
+
+loader = KreuzbergLoader(
+    file_path="scanned.pdf",
+    config=config,
 )
 docs = loader.load()
 ```
@@ -76,9 +90,13 @@ docs = loader.load()
 ### Per-page splitting for RAG
 
 ```python
+from kreuzberg import ExtractionConfig, PageConfig
+
+config = ExtractionConfig(pages=PageConfig(extract_pages=True))
+
 loader = KreuzbergLoader(
     file_path="handbook.pdf",
-    per_page=True,
+    config=config,
 )
 docs = loader.load()
 # docs[0].metadata["page"] == 0  (zero-indexed)
@@ -98,7 +116,7 @@ loader = KreuzbergLoader(
 docs = loader.load()
 ```
 
-### Full config override
+### Advanced config
 
 ```python
 from kreuzberg import ExtractionConfig, OcrConfig, PageConfig
@@ -143,19 +161,15 @@ Extends `langchain_core.document_loaders.BaseLoader`.
 
 #### Constructor Parameters
 
+All parameters are keyword-only.
+
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `file_path` | `str \| Path \| list[str \| Path] \| None` | `None` | File path, list of file paths, or directory path to load. |
 | `data` | `bytes \| None` | `None` | Raw bytes to extract text from. Mutually exclusive with `file_path`. |
 | `mime_type` | `str \| None` | `None` | MIME type hint. Required when using `data`, optional for `file_path`. |
 | `glob` | `str \| None` | `None` | Glob pattern for directory loading. |
-| `output_format` | `str` | `"markdown"` | Output format: `"plain"`, `"markdown"`, `"djot"`, `"html"`, or `"structured"`. |
-| `ocr_backend` | `str \| None` | `None` | OCR backend: `"tesseract"`, `"easyocr"`, or `"paddleocr"`. |
-| `ocr_language` | `str \| None` | `None` | OCR language code (ISO 639-3, e.g., `"eng"`, `"deu"`, `"fra"`). |
-| `force_ocr` | `bool` | `False` | Force OCR even on searchable PDFs. |
-| `extract_tables` | `bool` | `True` | Include tables in `page_content` and metadata. |
-| `per_page` | `bool` | `False` | Yield one `Document` per page instead of one per file. |
-| `config` | `ExtractionConfig \| None` | `None` | Full `ExtractionConfig` override. When provided, individual extraction parameters are ignored. |
+| `config` | `ExtractionConfig \| None` | `None` | Kreuzberg `ExtractionConfig` for controlling extraction behavior (output format, OCR settings, page splitting, etc.). See [Kreuzberg docs](https://kreuzberg.dev) for all options. |
 
 #### Methods
 
@@ -196,7 +210,7 @@ Additional metadata fields from Kreuzberg's document-level metadata are flattene
 
 ## Supported Formats
 
-Kreuzberg supports 75+ file formats including PDF, DOCX, images (via OCR), spreadsheets, presentations, HTML, Markdown, and many more. For the full and up-to-date list of supported formats, see the [Kreuzberg documentation](https://github.com/Goldziher/kreuzberg).
+Kreuzberg supports 75+ file formats including PDF, DOCX, images (via OCR), spreadsheets, presentations, HTML, Markdown, and many more. For the full and up-to-date list of supported formats, see the [Kreuzberg documentation](https://kreuzberg.dev).
 
 ## Contributing
 

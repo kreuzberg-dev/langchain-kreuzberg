@@ -65,7 +65,7 @@ def make_mock_result(
     result = MagicMock()
     result.content = content
     result.mime_type = mime_type
-    result.metadata = metadata or {"format_type": "text"}
+    result.metadata = metadata if metadata is not None else {"format_type": "text"}
     result.tables = tables or []
     result.pages = pages
     result.quality_score = quality_score

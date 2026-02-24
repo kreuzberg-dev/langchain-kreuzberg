@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from kreuzberg import ExtractionConfig, PageConfig
 
 from langchain_kreuzberg import KreuzbergLoader
 from tests.conftest import make_mock_result
@@ -39,9 +40,9 @@ async def test_alazy_load_bytes_mode(mock_extract: AsyncMock) -> None:
     mock_extract.assert_called_once()
 
 
-@patch("langchain_kreuzberg.loader.extract_file", new_callable=AsyncMock)
-async def test_alazy_load_multiple_files(mock_extract: AsyncMock) -> None:
-    mock_extract.return_value = make_mock_result()
+@patch("langchain_kreuzberg.loader.batch_extract_files", new_callable=AsyncMock)
+async def test_alazy_load_multiple_files(mock_batch: AsyncMock) -> None:
+    mock_batch.return_value = [make_mock_result(), make_mock_result(), make_mock_result()]
 
     loader = KreuzbergLoader(file_path=["a.txt", "b.txt", "c.txt"])
     docs = []
@@ -49,12 +50,12 @@ async def test_alazy_load_multiple_files(mock_extract: AsyncMock) -> None:
         docs.append(doc)
 
     assert len(docs) == 3
-    assert mock_extract.call_count == 3
+    mock_batch.assert_called_once()
 
 
-@patch("langchain_kreuzberg.loader.extract_file", new_callable=AsyncMock)
-async def test_alazy_load_directory(mock_extract: AsyncMock, tmp_dir_with_files: Path) -> None:
-    mock_extract.return_value = make_mock_result()
+@patch("langchain_kreuzberg.loader.batch_extract_files", new_callable=AsyncMock)
+async def test_alazy_load_directory(mock_batch: AsyncMock, tmp_dir_with_files: Path) -> None:
+    mock_batch.return_value = [make_mock_result(), make_mock_result()]
 
     loader = KreuzbergLoader(file_path=str(tmp_dir_with_files), glob="*.txt")
     docs = []
@@ -63,6 +64,15 @@ async def test_alazy_load_directory(mock_extract: AsyncMock, tmp_dir_with_files:
 
     # Only top-level .txt files
     assert len(docs) == 2
+
+
+async def test_alazy_load_empty_directory(tmp_path: Path) -> None:
+    loader = KreuzbergLoader(file_path=str(tmp_path))
+    docs = []
+    async for doc in loader.alazy_load():
+        docs.append(doc)
+
+    assert len(docs) == 0
 
 
 @patch("langchain_kreuzberg.loader.extract_file", new_callable=AsyncMock)
@@ -75,7 +85,8 @@ async def test_alazy_load_per_page(mock_extract: AsyncMock) -> None:
         page_count=2,
     )
 
-    loader = KreuzbergLoader(file_path="doc.pdf", per_page=True)
+    config = ExtractionConfig(pages=PageConfig(extract_pages=True))
+    loader = KreuzbergLoader(file_path="doc.pdf", config=config)
     docs = []
     async for doc in loader.alazy_load():
         docs.append(doc)
@@ -108,5 +119,19 @@ async def test_alazy_load_error_propagation(mock_extract: AsyncMock) -> None:
     loader = KreuzbergLoader(file_path="bad.pdf")
 
     with pytest.raises(KreuzbergError, match=r"Failed to extract 'bad\.pdf'"):
+        async for _doc in loader.alazy_load():
+            pass
+
+
+@patch("langchain_kreuzberg.loader.batch_extract_files", new_callable=AsyncMock)
+async def test_alazy_load_batch_error_propagation(mock_batch: AsyncMock) -> None:
+    from kreuzberg.exceptions import KreuzbergError
+
+    error_result = make_mock_result(content="Error: unsupported format", mime_type="text/plain", metadata={})
+    mock_batch.return_value = [make_mock_result(), error_result]
+
+    loader = KreuzbergLoader(file_path=["good.txt", "bad.xyz"])
+
+    with pytest.raises(KreuzbergError, match=r"Failed to extract 'bad\.xyz'"):
         async for _doc in loader.alazy_load():
             pass
