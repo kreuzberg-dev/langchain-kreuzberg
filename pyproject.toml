@@ -61,6 +61,7 @@ strict = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = ["integration: real file extraction tests (no mocks, slower)"]
 
 [tool.coverage.run]
 source = ["langchain_kreuzberg"]
