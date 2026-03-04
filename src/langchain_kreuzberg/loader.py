@@ -169,7 +169,9 @@ class KreuzbergLoader(BaseLoader):
 
         # Processing warnings
         if result.processing_warnings:
-            metadata["processing_warnings"] = [str(w) for w in result.processing_warnings]
+            metadata["processing_warnings"] = [
+                {"source": w.source, "message": w.message} for w in result.processing_warnings
+            ]
 
         metadata["source"] = source
 
@@ -224,9 +226,15 @@ class KreuzbergLoader(BaseLoader):
 
     @staticmethod
     def _check_batch_result(result: ExtractionResult, path: Path) -> None:
-        """Raise KreuzbergError if a batch result represents an extraction failure."""
-        if not result.metadata and result.content.startswith("Error:"):
-            msg = f"Failed to extract '{path}': {result.content}"
+        """Raise KreuzbergError if a batch result represents an extraction failure.
+
+        Kreuzberg v4.x batch extraction embeds per-file errors as metadata["error"] dicts
+        rather than raising exceptions, to allow partial batch success.
+        """
+        error = result.metadata.get("error") if isinstance(result.metadata, dict) else None
+        if error is not None:
+            error_message = error.get("message", result.content) if isinstance(error, dict) else result.content
+            msg = f"Failed to extract '{path}': {error_message}"
             raise KreuzbergError(msg)
 
     def lazy_load(self) -> Iterator[Document]:

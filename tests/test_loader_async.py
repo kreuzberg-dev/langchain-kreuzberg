@@ -127,7 +127,11 @@ async def test_alazy_load_error_propagation(mock_extract: AsyncMock) -> None:
 async def test_alazy_load_batch_error_propagation(mock_batch: AsyncMock) -> None:
     from kreuzberg.exceptions import KreuzbergError
 
-    error_result = make_mock_result(content="Error: unsupported format", mime_type="text/plain", metadata={})
+    error_result = make_mock_result(
+        content="Error: unsupported format",
+        mime_type="text/plain",
+        metadata={"error": {"error_type": "ParsingError", "message": "unsupported format"}},
+    )
     mock_batch.return_value = [make_mock_result(), error_result]
 
     loader = KreuzbergLoader(file_path=["good.txt", "bad.xyz"])

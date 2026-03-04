@@ -71,7 +71,20 @@ def make_mock_result(
     result.quality_score = quality_score
     result.detected_languages = detected_languages
     result.extracted_keywords = extracted_keywords
-    result.processing_warnings = processing_warnings or []
+    if processing_warnings is not None:
+        warnings = []
+        for w in processing_warnings:
+            warning = MagicMock()
+            if isinstance(w, str):
+                warning.source = "extraction"
+                warning.message = w
+            else:
+                warning.source = w.get("source", "extraction")
+                warning.message = w.get("message", "")
+            warnings.append(warning)
+        result.processing_warnings = warnings
+    else:
+        result.processing_warnings = []
     result.output_format = output_format
     result.get_page_count.return_value = page_count
     return result
