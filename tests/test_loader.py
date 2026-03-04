@@ -329,7 +329,10 @@ def test_processing_warnings_in_metadata(mock_extract: MagicMock) -> None:
     docs = loader.load()
 
     assert "processing_warnings" in docs[0].metadata
-    assert len(docs[0].metadata["processing_warnings"]) == 2
+    warnings = docs[0].metadata["processing_warnings"]
+    assert len(warnings) == 2
+    assert warnings[0] == {"source": "extraction", "message": "Low quality scan detected"}
+    assert warnings[1] == {"source": "extraction", "message": "Missing font fallback"}
 
 
 # --- Table extraction ---
@@ -398,7 +401,11 @@ def test_error_propagation(mock_extract: MagicMock) -> None:
 def test_batch_error_propagation(mock_batch: MagicMock) -> None:
     from kreuzberg.exceptions import KreuzbergError
 
-    error_result = make_mock_result(content="Error: unsupported format", mime_type="text/plain", metadata={})
+    error_result = make_mock_result(
+        content="Error: unsupported format",
+        mime_type="text/plain",
+        metadata={"error": {"error_type": "ParsingError", "message": "unsupported format"}},
+    )
     mock_batch.return_value = [make_mock_result(), error_result]
 
     loader = KreuzbergLoader(file_path=["good.txt", "bad.xyz"])

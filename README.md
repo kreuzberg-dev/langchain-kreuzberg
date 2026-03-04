@@ -217,7 +217,7 @@ Each `Document` produced by `KreuzbergLoader` includes the following metadata fi
 | `extracted_keywords` | `list[dict]` | Keywords with `text`, `score`, and `algorithm` fields. |
 | `table_count` | `int` | Number of tables found in the document. |
 | `tables` | `list[dict]` | Table data with `cells`, `markdown`, and `page_number` fields. |
-| `processing_warnings` | `list[str]` | Any warnings generated during extraction. |
+| `processing_warnings` | `list[dict]` | Warnings with `source` and `message` fields. |
 | `page` | `int` | Zero-indexed page number (only present in per-page mode). |
 | `is_blank` | `bool` | Whether the page is blank (only present in per-page mode). |
 | `title` | `str` | Document title (from file metadata). |
