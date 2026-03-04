@@ -16,7 +16,7 @@ include = [
 
 [project]
 name = "langchain-kreuzberg"
-version = "1.0.0"
+version = "1.0.1"
 description = "Kreuzberg document loader for LangChain — extract text from 75+ file formats with true async and rich metadata"
 readme = "README.md"
 license = "MIT"
