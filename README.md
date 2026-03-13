@@ -30,7 +30,7 @@
 
 ## Overview
 
-**langchain-kreuzberg** is a LangChain document loader that wraps [Kreuzberg](https://github.com/kreuzberg-dev/kreuzberg)'s extraction API. It supports 75+ file formats out of the box, provides true async extraction powered by Rust's tokio runtime, and produces LangChain `Document` objects enriched with rich metadata including detected languages, quality scores, and extracted keywords.
+**langchain-kreuzberg** is a LangChain document loader that wraps [Kreuzberg](https://github.com/kreuzberg-dev/kreuzberg)'s extraction API. It supports 88+ file formats out of the box, provides true async extraction powered by Rust's tokio runtime, and produces LangChain `Document` objects enriched with rich metadata including detected languages, quality scores, and extracted keywords.
 
 ## Installation
 
@@ -54,7 +54,7 @@ print(docs[0].metadata["source"])
 
 ## Features
 
-- **75+ file formats** -- PDF, DOCX, PPTX, XLSX, images, HTML, Markdown, plain text, and many more
+- **88+ file formats** -- PDF, DOCX, PPTX, XLSX, images, HTML, Markdown, plain text, and many more
 - **True async** -- native async extraction backed by Rust's tokio runtime; no thread-pool workarounds
 - **Rich metadata** -- title, author, page count, detected languages, quality score, extracted keywords, and more
 - **OCR with 3 backends** -- Tesseract, EasyOCR, and PaddleOCR with configurable language support
@@ -232,7 +232,7 @@ Additional metadata fields from Kreuzberg's document-level metadata are flattene
 
 ## Supported Formats
 
-Kreuzberg supports 75+ file formats including PDF, DOCX, images (via OCR), spreadsheets, presentations, HTML, Markdown, and many more. For the full and up-to-date list of supported formats, see the [Kreuzberg repository](https://github.com/kreuzberg-dev/kreuzberg).
+Kreuzberg supports 88+ file formats including PDF, DOCX, images (via OCR), spreadsheets, presentations, HTML, Markdown, and many more. For the full and up-to-date list of supported formats, see the [Kreuzberg repository](https://github.com/kreuzberg-dev/kreuzberg).
 
 ## Contributing
 

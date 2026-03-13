@@ -20,7 +20,7 @@ from langchain_core.documents import Document
 
 
 class KreuzbergLoader(BaseLoader):
-    """Load documents using Kreuzberg, supporting 75+ file formats with true async.
+    """Load documents using Kreuzberg, supporting 88+ file formats with true async.
 
     Kreuzberg is a Rust-powered document intelligence library. This loader wraps its
     extraction API to provide LangChain-compatible Documents with rich metadata.

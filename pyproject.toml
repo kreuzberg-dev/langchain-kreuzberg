@@ -16,8 +16,8 @@ include = [
 
 [project]
 name = "langchain-kreuzberg"
-version = "1.0.1"
-description = "Kreuzberg document loader for LangChain — extract text from 75+ file formats with true async and rich metadata"
+version = "1.0.2"
+description = "Kreuzberg document loader for LangChain — extract text from 88+ file formats with true async and rich metadata"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -53,7 +53,7 @@ classifiers = [
 ]
 dependencies = [
     "langchain-core>=1.0,<2.0",
-    "kreuzberg>=4.3.0",
+    "kreuzberg>=4.4.6",
 ]
 
 [dependency-groups]
