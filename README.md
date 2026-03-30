@@ -1,9 +1,5 @@
 # langchain-kreuzberg
 
-<div align="center">
-  <img src="docs/assets/logo.svg" alt="Kreuzberg Logo" width="200" height="200" />
-</div>
-
 <div align="center" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0;">
   <a href="https://pypi.org/project/langchain-kreuzberg/">
     <img src="https://img.shields.io/pypi/v/langchain-kreuzberg?label=PyPI&color=007ec6" alt="PyPI">
@@ -25,6 +21,14 @@
   </a>
   <a href="https://docs.kreuzberg.dev">
     <img src="https://img.shields.io/badge/docs-kreuzberg.dev-blue" alt="Documentation">
+  </a>
+</div>
+
+<img width="3384" height="573" alt="Kreuzberg Banner" src="https://github.com/user-attachments/assets/1b6c6ad7-3b6d-4171-b1c9-f2026cc9deb8" />
+
+<div align="center" style="margin-top: 20px;">
+  <a href="https://discord.gg/xt9WY3GnKR">
+    <img height="22" src="https://img.shields.io/badge/Discord-Join%20our%20community-7289da?logo=discord&logoColor=white" alt="Discord">
   </a>
 </div>
 
