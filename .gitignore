@@ -8,3 +8,9 @@ build/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+
+# AI Rules generated files
+CLAUDE.md
+AGENTS.md
+.claude/
+.mcp.json
