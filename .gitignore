@@ -14,3 +14,12 @@ CLAUDE.md
 AGENTS.md
 .claude/
 .mcp.json
+
+# AI Rules generated files
+.github/copilot-instructions.md
+.codex/
+
+# AI Rules generated files
+.cursor/
+.agents/
+GEMINI.md
