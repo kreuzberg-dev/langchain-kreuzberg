@@ -1,0 +1,15 @@
+# AI-Rulez Configuration (migrated to V4 TOML format)
+# Documentation: https://github.com/Goldziher/ai-rulez
+
+version = '4.0'
+name = 'langchain-kreuzberg'
+description = 'LangChain document loader integration for kreuzberg'
+gitignore = true
+presets = ['claude', 'codex', 'copilot', 'cursor', 'antigravity']
+builtins = ['python', 'security', 'git-workflow', 'code-quality', 'testing', 'token-efficiency', 'default-commands']
+
+[[includes]]
+name = 'kreuzberg-core'
+source = 'https://github.com/kreuzberg-dev/ai-rulez.git'
+path = 'modules/core'
+merge_strategy = 'local-override'
